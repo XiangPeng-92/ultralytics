@@ -115,6 +115,7 @@ class Results(SimpleClass):
         self.keypoints = (
             Keypoints(keypoints, self.orig_shape) if keypoints is not None else None
         )
+        self.timestamp = None
         self.speed = {
             "preprocess": None,
             "inference": None,

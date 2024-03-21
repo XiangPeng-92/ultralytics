@@ -51,7 +51,7 @@ def on_predict_postprocess_end(predictor: object, persist: bool = False) -> None
         persist (bool, optional): Whether to persist the trackers if they already exist. Defaults to False.
     """
     bs = predictor.dataset.bs
-    path, im0s = predictor.batch[:2]
+    path, timestamps, im0s = predictor.batch[:3]
 
     for i in range(bs):
         det = predictor.results[i].boxes.data.cpu().numpy()

@@ -39,7 +39,15 @@ from ultralytics.cfg import get_cfg, get_save_dir
 from ultralytics.data import load_inference_source
 from ultralytics.data.augment import LetterBox, classify_transforms
 from ultralytics.nn.autobackend import AutoBackend
-from ultralytics.utils import DEFAULT_CFG, LOGGER, MACOS, WINDOWS, callbacks, colorstr, ops
+from ultralytics.utils import (
+    DEFAULT_CFG,
+    LOGGER,
+    MACOS,
+    WINDOWS,
+    callbacks,
+    colorstr,
+    ops,
+)
 from ultralytics.utils.checks import check_imgsz, check_imshow
 from ultralytics.utils.files import increment_path
 from ultralytics.utils.torch_utils import select_device, smart_inference_mode
@@ -299,7 +307,7 @@ class BasePredictor:
             for batch in self.dataset:
                 self.run_callbacks("on_predict_batch_start")
                 self.batch = batch
-                path, im0s, vid_cap, s = batch
+                path, timestamps, im0s, vid_cap, s = batch
 
                 # Preprocess
                 with profilers[0]:
@@ -321,6 +329,7 @@ class BasePredictor:
                 n = len(im0s)
                 for i in range(n):
                     self.seen += 1
+                    self.results[i].timestamp = timestamps[i]
                     self.results[i].speed = {
                         "preprocess": profilers[0].dt * 1e3 / n,
                         "inference": profilers[1].dt * 1e3 / n,
@@ -401,7 +410,7 @@ class BasePredictor:
             )  # allow window resize (Linux)
             cv2.resizeWindow(str(p), im0.shape[1], im0.shape[0])
         cv2.imshow(str(p), im0)
-        cv2.waitKey(500 if self.batch[3].startswith("image") else 1)  # 1 millisecond
+        cv2.waitKey(500 if self.batch[4].startswith("image") else 1)  # 1 millisecond
 
     def save_preds(self, vid_cap, idx, save_path):
         """Save video predictions as mp4 at specified path."""
@@ -429,9 +438,7 @@ class BasePredictor:
                 suffix, fourcc = (
                     (".mp4", "avc1")
                     if MACOS
-                    else (".avi", "WMV2")
-                    if WINDOWS
-                    else (".avi", "MJPG")
+                    else (".avi", "WMV2") if WINDOWS else (".avi", "MJPG")
                 )
                 self.vid_writer[idx] = cv2.VideoWriter(
                     str(Path(save_path).with_suffix(suffix)),

@@ -177,7 +177,7 @@ class LoadStreams:
         """Returns source paths, transformed and original images for processing."""
         self.count += 1
 
-        images = []
+        image_stamp = []
         for i, x in enumerate(self.imgs):
             # Wait until a frame is available in each buffer
             while not x:
@@ -193,16 +193,19 @@ class LoadStreams:
 
             # Get and remove the first frame from imgs buffer
             if self.buffer:
-                images.append(x.pop(0))
+                image_stamp.append(x.pop(0))
 
             # Get the last frame, and clear the rest from the imgs buffer
             else:
-                images.append(
+                image_stamp.append(
                     x.pop(-1) if x else np.zeros(self.shape[i], dtype=np.uint8)
                 )
                 x.clear()
 
-        return self.sources, images, None, ""
+        timestamps = [item[0] for item in image_stamp]
+        images = [item[1] for item in image_stamp]
+
+        return self.sources, timestamps, images, None, ""
 
     def __len__(self):
         """Return the length of the sources object."""
