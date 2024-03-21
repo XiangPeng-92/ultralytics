@@ -32,7 +32,7 @@ class SAM(Model):
     dataset.
     """
 
-    def __init__(self, model='sam_b.pt') -> None:
+    def __init__(self, model="sam_b.pt") -> None:
         """
         Initializes the SAM model with a pre-trained model file.
 
@@ -42,9 +42,11 @@ class SAM(Model):
         Raises:
             NotImplementedError: If the model file extension is not .pt or .pth.
         """
-        if model and Path(model).suffix not in ('.pt', '.pth'):
-            raise NotImplementedError('SAM prediction requires pre-trained *.pt or *.pth model.')
-        super().__init__(model=model, task='segment')
+        if model and Path(model).suffix not in (".pt", ".pth"):
+            raise NotImplementedError(
+                "SAM prediction requires pre-trained *.pt or *.pth model."
+            )
+        super().__init__(model=model, task="segment")
 
     def _load(self, weights: str, task=None):
         """
@@ -56,7 +58,9 @@ class SAM(Model):
         """
         self.model = build_sam(weights)
 
-    def predict(self, source, stream=False, bboxes=None, points=None, labels=None, **kwargs):
+    def predict(
+        self, source, stream=False, bboxes=None, points=None, labels=None, **kwargs
+    ):
         """
         Performs segmentation prediction on the given image or video source.
 
@@ -70,12 +74,14 @@ class SAM(Model):
         Returns:
             (list): The model predictions.
         """
-        overrides = dict(conf=0.25, task='segment', mode='predict', imgsz=1024)
+        overrides = dict(conf=0.25, task="segment", mode="predict", imgsz=1024)
         kwargs.update(overrides)
         prompts = dict(bboxes=bboxes, points=points, labels=labels)
         return super().predict(source, stream, prompts=prompts, **kwargs)
 
-    def __call__(self, source=None, stream=False, bboxes=None, points=None, labels=None, **kwargs):
+    def __call__(
+        self, source=None, stream=False, bboxes=None, points=None, labels=None, **kwargs
+    ):
         """
         Alias for the 'predict' method.
 
@@ -112,4 +118,4 @@ class SAM(Model):
         Returns:
             (dict): A dictionary mapping the 'segment' task to its corresponding 'Predictor'.
         """
-        return {'segment': {'predictor': Predictor}}
+        return {"segment": {"predictor": Predictor}}
