@@ -12,7 +12,15 @@ from urllib import parse, request
 import requests
 import torch
 
-from ultralytics.utils import LOGGER, TQDM, checks, clean_url, emojis, is_online, url2file
+from ultralytics.utils import (
+    LOGGER,
+    TQDM,
+    checks,
+    clean_url,
+    emojis,
+    is_online,
+    url2file,
+)
 
 # Define Ultralytics GitHub assets maintained at https://github.com/ultralytics/assets
 GITHUB_ASSETS_REPO = "ultralytics/assets"

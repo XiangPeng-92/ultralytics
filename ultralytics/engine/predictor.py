@@ -438,7 +438,9 @@ class BasePredictor:
                 suffix, fourcc = (
                     (".mp4", "avc1")
                     if MACOS
-                    else (".avi", "WMV2") if WINDOWS else (".avi", "MJPG")
+                    else (".avi", "WMV2")
+                    if WINDOWS
+                    else (".avi", "MJPG")
                 )
                 self.vid_writer[idx] = cv2.VideoWriter(
                     str(Path(save_path).with_suffix(suffix)),

@@ -21,9 +21,30 @@ import requests
 import torch
 from matplotlib import font_manager
 
-from ultralytics.utils import (ASSETS, AUTOINSTALL, LINUX, LOGGER, ONLINE, ROOT, USER_CONFIG_DIR, SimpleNamespace,
-                               ThreadingLocked, TryExcept, clean_url, colorstr, downloads, emojis, is_colab, is_docker,
-                               is_github_action_running, is_jupyter, is_kaggle, is_online, is_pip_package, url2file)
+from ultralytics.utils import (
+    ASSETS,
+    AUTOINSTALL,
+    LINUX,
+    LOGGER,
+    ONLINE,
+    ROOT,
+    USER_CONFIG_DIR,
+    SimpleNamespace,
+    ThreadingLocked,
+    TryExcept,
+    clean_url,
+    colorstr,
+    downloads,
+    emojis,
+    is_colab,
+    is_docker,
+    is_github_action_running,
+    is_jupyter,
+    is_kaggle,
+    is_online,
+    is_pip_package,
+    url2file,
+)
 
 
 def parse_requirements(file_path=ROOT.parent / "requirements.txt", package=""):
