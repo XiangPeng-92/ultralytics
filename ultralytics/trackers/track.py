@@ -58,7 +58,7 @@ def on_predict_postprocess_end(predictor: object, persist: bool = False) -> None
 
         if len(det) == 0:
             continue
-        tracks = predictor.trackers[i].update(det, im0s[i])
+        tracks = predictor.trackers[i].update(det, im0s[i], timestamps[i])
         if len(tracks) == 0:
             continue
         idx = tracks[:, -1].astype(int)
