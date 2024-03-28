@@ -391,8 +391,8 @@ class BasePredictor:
         self.run_callbacks("on_predict_end")
 
     def check_crossing(self, i):
-        line_begin = [0, 0]
-        line_end = [1080, 1080]
+        line_begin = [self.custom_args.line_start_x, self.custom_args.line_start_y]
+        line_end = [self.custom_args.line_end_x, self.custom_args.line_end_y]
         for id in self.results[i].boxes.id.numpy():
             track = self.trackers[i].all_stracks[id]
             traj_p0, traj_p1, timestamp = get_track_data(track)
