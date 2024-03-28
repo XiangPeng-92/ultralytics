@@ -35,6 +35,10 @@ import cv2
 import numpy as np
 import torch
 
+from ultralytics.engine.fare_gate_crossing_checker import (
+    get_track_data,
+    check_line_crossing,
+)
 from ultralytics.cfg import get_cfg, get_save_dir
 from ultralytics.data import load_inference_source
 from ultralytics.data.augment import LetterBox, classify_transforms
@@ -355,6 +359,8 @@ class BasePredictor:
                     if self.args.save and self.plotted_img is not None:
                         self.save_preds(vid_cap, i, str(self.save_dir / p.name))
 
+                    self.check_crossing(i)
+
                 self.run_callbacks("on_predict_batch_end")
                 yield from self.results
 
@@ -383,6 +389,19 @@ class BasePredictor:
             LOGGER.info(f"Results saved to {colorstr('bold', self.save_dir)}{s}")
 
         self.run_callbacks("on_predict_end")
+
+    def check_crossing(self, i):
+        line_begin = [0, 0]
+        line_end = [1080, 1080]
+        for id in self.results[i].boxes.id.numpy():
+            track = self.trackers[i].all_stracks[id]
+            traj_p0, traj_p1, timestamp = get_track_data(track)
+            crossing = check_line_crossing(traj_p0, traj_p1, line_begin, line_end)
+            if crossing:
+                track.crossing_hist.append([timestamp, crossing])
+                self.results[i].crossing_dict[id] = sum(
+                    [item[1] for item in track.crossing_hist]
+                )
 
     def setup_model(self, model, verbose=True):
         """Initialize YOLO model with given parameters and set it to evaluation mode."""
@@ -438,9 +457,7 @@ class BasePredictor:
                 suffix, fourcc = (
                     (".mp4", "avc1")
                     if MACOS
-                    else (".avi", "WMV2")
-                    if WINDOWS
-                    else (".avi", "MJPG")
+                    else (".avi", "WMV2") if WINDOWS else (".avi", "MJPG")
                 )
                 self.vid_writer[idx] = cv2.VideoWriter(
                     str(Path(save_path).with_suffix(suffix)),

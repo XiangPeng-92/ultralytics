@@ -116,6 +116,7 @@ class Results(SimpleClass):
             Keypoints(keypoints, self.orig_shape) if keypoints is not None else None
         )
         self.timestamp = None
+        self.crossing_dict = {}
         self.speed = {
             "preprocess": None,
             "inference": None,
