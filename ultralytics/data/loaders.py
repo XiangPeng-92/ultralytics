@@ -376,6 +376,8 @@ class LoadImages:
             self.mode = "video"
             for _ in range(self.vid_stride):
                 self.cap.grab()
+
+            timeframe = datetime.now()
             success, im0 = self.cap.retrieve()
             while not success:
                 self.count += 1
@@ -384,6 +386,8 @@ class LoadImages:
                     raise StopIteration
                 path = self.files[self.count]
                 self._new_video(path)
+
+                timeframe = datetime.now()
                 success, im0 = self.cap.read()
 
             self.frame += 1
@@ -398,7 +402,7 @@ class LoadImages:
                 raise FileNotFoundError(f"Image Not Found {path}")
             s = f"image {self.count}/{self.nf} {path}: "
 
-        return [path], [im0], self.cap, s
+        return [path], [timeframe], [im0], self.cap, s
 
     def _new_video(self, path):
         """Create a new video capture object."""
