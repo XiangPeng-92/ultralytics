@@ -201,7 +201,9 @@ class BasePredictor:
             }
             if not self.args.retina_masks:
                 plot_args["im_gpu"] = im[idx]
-            self.plotted_img = result.plot(**plot_args)
+            self.plotted_img = self.trackers[0].plot_results(
+                result.orig_img, self.custom_args.show_trajectories
+            )
         # Write
         if self.args.save_txt:
             result.save_txt(f"{self.txt_path}.txt", save_conf=self.args.save_conf)
