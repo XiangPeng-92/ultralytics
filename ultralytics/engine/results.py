@@ -4,11 +4,13 @@ Ultralytics Results, Boxes and Masks classes for handling inference results.
 
 Usage: See https://docs.ultralytics.com/modes/predict/
 """
-
+import colorsys
+import hashlib
 from copy import deepcopy
 from functools import lru_cache
 from pathlib import Path
 
+import cv2 as cv
 import numpy as np
 import torch
 
@@ -116,7 +118,6 @@ class Results(SimpleClass):
             Keypoints(keypoints, self.orig_shape) if keypoints is not None else None
         )
         self.timestamp = None
-        self.crossing_dict = {}
         self.speed = {
             "preprocess": None,
             "inference": None,
@@ -187,128 +188,179 @@ class Results(SimpleClass):
         """Return a new Results object with the same image, path, and names."""
         return Results(orig_img=self.orig_img, path=self.path, names=self.names)
 
-    def plot(
-        self,
-        conf=True,
-        line_width=None,
-        font_size=None,
-        font="Arial.ttf",
-        pil=False,
-        img=None,
-        im_gpu=None,
-        kpt_radius=5,
-        kpt_line=True,
-        labels=True,
-        boxes=True,
-        masks=True,
-        probs=True,
-    ):
+    def id_to_color(
+        self, id: int, saturation: float = 0.75, value: float = 0.95
+    ) -> tuple:
         """
-        Plots the detection results on an input RGB image. Accepts a numpy array (cv2) or a PIL Image.
+        Generates a consistent unique BGR color for a given ID using hashing.
 
-        Args:
-            conf (bool): Whether to plot the detection confidence score.
-            line_width (float, optional): The line width of the bounding boxes. If None, it is scaled to the image size.
-            font_size (float, optional): The font size of the text. If None, it is scaled to the image size.
-            font (str): The font to use for the text.
-            pil (bool): Whether to return the image as a PIL Image.
-            img (numpy.ndarray): Plot to another image. if not, plot to original image.
-            im_gpu (torch.Tensor): Normalized image in gpu with shape (1, 3, 640, 640), for faster mask plotting.
-            kpt_radius (int, optional): Radius of the drawn keypoints. Default is 5.
-            kpt_line (bool): Whether to draw lines connecting keypoints.
-            labels (bool): Whether to plot the label of bounding boxes.
-            boxes (bool): Whether to plot the bounding boxes.
-            masks (bool): Whether to plot the masks.
-            probs (bool): Whether to plot classification probability
+        Parameters:
+        - id (int): Unique identifier for which to generate a color.
+        - saturation (float): Saturation value for the color in HSV space.
+        - value (float): Value (brightness) for the color in HSV space.
 
         Returns:
-            (numpy.ndarray): A numpy array of the annotated image.
-
-        Example:
-            ```python
-            from PIL import Image
-            from ultralytics import YOLO
-
-            model = YOLO('yolov8n.pt')
-            results = model('bus.jpg')  # results list
-            for r in results:
-                im_array = r.plot()  # plot a BGR numpy array of predictions
-                im = Image.fromarray(im_array[..., ::-1])  # RGB PIL image
-                im.show()  # show image
-                im.save('results.jpg')  # save image
-            ```
+        - tuple: A tuple representing the BGR color.
         """
-        if img is None and isinstance(self.orig_img, torch.Tensor):
-            img = (
-                (self.orig_img[0].detach().permute(1, 2, 0).contiguous() * 255)
-                .to(torch.uint8)
-                .cpu()
-                .numpy()
-            )
 
-        names = self.names
-        pred_boxes, show_boxes = self.boxes, boxes
-        pred_masks, show_masks = self.masks, masks
-        pred_probs, show_probs = self.probs, probs
-        annotator = Annotator(
-            deepcopy(self.orig_img if img is None else img),
-            line_width,
-            font_size,
-            font,
-            pil
-            or (
-                pred_probs is not None and show_probs
-            ),  # Classify tasks default to pil=True
-            example=names,
+        # Hash the ID to get a consistent unique value
+        hash_object = hashlib.sha256(str(id).encode())
+        hash_digest = hash_object.hexdigest()
+
+        # Convert the first few characters of the hash to an integer
+        # and map it to a value between 0 and 1 for the hue
+        hue = int(hash_digest[:8], 16) / 0xFFFFFFFF
+
+        # Convert HSV to RGB
+        rgb = colorsys.hsv_to_rgb(hue, saturation, value)
+
+        # Convert RGB from 0-1 range to 0-255 range and format as hexadecimal
+        rgb_255 = tuple(int(component * 255) for component in rgb)
+        hex_color = "#%02x%02x%02x" % rgb_255
+        # Strip the '#' character and convert the string to RGB integers
+        rgb = tuple(int(hex_color.strip("#")[i : i + 2], 16) for i in (0, 2, 4))
+
+        # Convert RGB to BGR for OpenCV
+        bgr = rgb[::-1]
+
+        return bgr
+
+    def plot_box_on_img(
+        self, img: np.ndarray, box: tuple, conf: float, id: int, cross: int
+    ) -> np.ndarray:
+        """
+        Draws a bounding box with ID, confidence, and class information on an image.
+
+        Parameters:
+        - img (np.ndarray): The image array to draw on.
+        - box (tuple): The bounding box coordinates as (x1, y1, x2, y2).
+        - conf (float): Confidence score of the detection.
+        - cls (int): Class ID of the detection.
+        - id (int): Unique identifier for the detection.
+
+        Returns:
+        - np.ndarray: The image array with the bounding box drawn on it.
+        """
+
+        thickness = 5
+        fontscale = 2
+
+        img = cv.rectangle(
+            img,
+            (int(box[0]), int(box[1])),
+            (int(box[2]), int(box[3])),
+            self.id_to_color(id),
+            thickness,
         )
+        img = cv.putText(
+            img,
+            f"id: {int(id)}, conf: {conf:.2f}, cross: {cross}",
+            (int(box[0]), int(box[1]) - 10),
+            cv.FONT_HERSHEY_SIMPLEX,
+            fontscale,
+            self.id_to_color(id),
+            thickness,
+        )
+        return img
 
-        # Plot Segment results
-        if pred_masks and show_masks:
-            if im_gpu is None:
-                img = LetterBox(pred_masks.shape[1:])(image=annotator.result())
-                im_gpu = (
-                    torch.as_tensor(
-                        img, dtype=torch.float16, device=pred_masks.data.device
-                    )
-                    .permute(2, 0, 1)
-                    .flip(0)
-                    .contiguous()
-                    / 255
-                )
-            idx = pred_boxes.cls if pred_boxes else range(len(pred_masks))
-            annotator.masks(
-                pred_masks.data, colors=[colors(x, True) for x in idx], im_gpu=im_gpu
+    def plot_trackers_trajectories(
+        self, img: np.ndarray, observations: np.ndarray, id: int
+    ) -> np.ndarray:
+        """
+        Draws the trajectories of tracked objects based on historical observations. Each point
+        in the trajectory is represented by a circle, with the thickness increasing for more
+        recent observations to visualize the path of movement.
+
+        Parameters:
+        - img (np.ndarray): The image array on which to draw the trajectories.
+        - observations (list): A list of bounding box coordinates representing the historical
+        observations of a tracked object. Each observation is in the format (x1, y1, x2, y2).
+        - id (int): The unique identifier of the tracked object for color consistency in visualization.
+
+        Returns:
+        - np.ndarray: The image array with the trajectories drawn on it.
+        """
+        for i, [center0, center1] in enumerate(
+            zip(observations[:-1], observations[1:])
+        ):
+            trajectory_thickness = int(np.sqrt(float(i + 1)) * 1.2)
+            img = cv.line(
+                img,
+                center0,
+                center1,
+                color=self.id_to_color(int(id)),
+                thickness=trajectory_thickness,
             )
+        return img
 
-        # Plot Detect results
-        if pred_boxes and show_boxes:
-            for d in reversed(pred_boxes):
-                c, conf, id = (
-                    int(d.cls),
-                    float(d.conf) if conf else None,
-                    None if d.id is None else int(d.id.item()),
+    def plot_line_on_img(self, img: np.ndarray, custom_args) -> np.ndarray:
+        start_point = [custom_args.line_start_x, custom_args.line_start_y]
+        end_point = [custom_args.line_end_x, custom_args.line_end_y]
+        thickness = 5
+        color = (255, 0, 0)
+        img = cv.line(img, start_point, end_point, color, thickness)
+        return img
+
+    def plot_counter_on_img(self, img, crossing_dict) -> np.ndarray:
+        counter = {"Enter": 0, "Exit": 0}
+        for item in crossing_dict.values():
+            if item > 0:
+                counter["Enter"] += 1
+            elif item < 0:
+                counter["Exit"] += 1
+        img = cv.putText(
+            img,
+            f"Enter: {counter['Enter']}",
+            (40, 60),
+            cv.FONT_HERSHEY_SIMPLEX,
+            2,
+            (0, 255, 0),
+            5,
+        )
+        img = cv.putText(
+            img,
+            f"Exit: {counter['Exit']}",
+            (40, 140),
+            cv.FONT_HERSHEY_SIMPLEX,
+            2,
+            (0, 255, 0),
+            5,
+        )
+        return img
+
+    def plot(self, tracker, custom_args) -> np.ndarray:
+        """
+        Visualizes the trajectories of all active tracks on the image. For each track,
+        it draws the latest bounding box and the path of movement if the history of
+        observations is longer than two. This helps in understanding the movement patterns
+        of each tracked object.
+
+        Parameters:
+        - img (np.ndarray): The image array on which to draw the trajectories and bounding boxes.
+
+        Returns:
+        - np.ndarray: The image array with trajectories and bounding boxes of all active tracks.
+        """
+
+        # if values in dict
+        img = self.plot_line_on_img(self.orig_img, custom_args)
+        img = self.plot_counter_on_img(img, tracker.crossing_dict)
+
+        for d in reversed(self.boxes):
+            if d.id:
+                conf, id = (float(d.conf), int(d.id.item()))
+                strack = tracker.all_stracks[id]
+                img = self.plot_box_on_img(
+                    img,
+                    d.xyxy.squeeze(),
+                    conf,
+                    id,
+                    sum([item[1] for item in strack.crossing_hist]),
                 )
-                name = ("" if id is None else f"id:{id} ") + names[c]
-                label = (f"{name} {conf:.2f}" if conf else name) if labels else None
-                annotator.box_label(d.xyxy.squeeze(), label, color=colors(c, True))
-
-        # Plot Classify results
-        if pred_probs is not None and show_probs:
-            text = ",\n".join(
-                f"{names[j] if names else j} {pred_probs.data[j]:.2f}"
-                for j in pred_probs.top5
-            )
-            x = round(self.orig_shape[0] * 0.03)
-            annotator.text(
-                [x, x], text, txt_color=(255, 255, 255)
-            )  # TODO: allow setting colors
-
-        # Plot Pose results
-        if self.keypoints is not None:
-            for k in reversed(self.keypoints.data):
-                annotator.kpts(k, self.orig_shape, radius=kpt_radius, kpt_line=kpt_line)
-
-        return annotator.result()
+                if len(strack.xy_hist) > 2 and custom_args.show_trajectories:
+                    center = [item[1].astype(int) for item in strack.xy_hist]
+                    img = self.plot_trackers_trajectories(img, center[-50:], id)
+        return img
 
     def verbose(self):
         """Return log string for each task."""
