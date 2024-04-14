@@ -254,8 +254,17 @@ class Results(SimpleClass):
         )
         img = cv.putText(
             img,
-            f"id: {int(id)}, conf: {conf:.2f}, cross: {cross}",
-            (int(box[0]), int(box[1]) - 10),
+            f"id:{int(id)}",
+            (int(box[0]) + 5, int(box[1]) - 10),
+            cv.FONT_HERSHEY_SIMPLEX,
+            fontscale,
+            self.id_to_color(id),
+            thickness,
+        )
+        img = cv.putText(
+            img,
+            f"cross:{cross}",
+            (int(box[0]) + 5, int(box[1]) + 50),
             cv.FONT_HERSHEY_SIMPLEX,
             fontscale,
             self.id_to_color(id),
