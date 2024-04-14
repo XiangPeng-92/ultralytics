@@ -402,6 +402,8 @@ class LoadImages:
                 raise FileNotFoundError(f"Image Not Found {path}")
             s = f"image {self.count}/{self.nf} {path}: "
 
+        im0 = np.transpose(im0, axes=(1, 0, 2))
+        im0 = im0[::-1, ...].copy()
         return [path], [timeframe], [im0], self.cap, s
 
     def _new_video(self, path):
